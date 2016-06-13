@@ -134,7 +134,7 @@ function _webform_edit_cleverreach($component) {
   $form['extra']['attributefields'] = array(
     '#type' => 'textarea',
     '#title' => t('cleverreach merge fields'),
-    '#description' => t('Enter one key|value pair per line. Use the cleverreach variable tag as the key and the webform field key as the value. For example "FNAME|firstname"'),
+    '#description' => t('Enter one key|value pair per line. Use the cleverreach variable key as the key and the webform field key as the value. For example "FNAME|firstname"'),
     '#default_value' => !empty($component['extra']['attributefields']) ? $component['extra']['attributefields'] : '',
     '#weight' => 5,
   );
