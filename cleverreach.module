@@ -11,6 +11,26 @@
 
 define('CLEVERREACH_GROUPS_CACHE_ID', 'cleverreach_groups');
 
+// Register the module-provided autoloader if xautoload and registry_autoload is
+// missing.
+if (!module_exists('xautoload') && !module_exists('registry_autoload')) {
+  spl_autoload_register('_cleverreach_autoload');
+}
+
+/**
+ * Cleverreach autoloader.
+ *
+ * @param string $class
+ *   The name of the class to load.
+ */
+function _cleverreach_autoload($class) {
+  if (stripos($class, 'Drupal\\cleverreach\\') !== FALSE) {
+    $path = strtr(str_replace('Drupal\\cleverreach\\', '', $class), '\\', '/');
+    module_load_include('php', 'cleverreach', "src/$path");
+  }
+}
+
+
 /**
  * Implements hook_permission().
  */
@@ -47,7 +67,7 @@ function cleverreach_entity_info() {
   return array(
     'cleverreach_block' => array(
       'label' => 'Cleverreach Block',
-      'entity class' => 'CleverReachBlock',
+      'entity class' => '\\Drupal\\cleverreach\\CleverReachBlock',
       'controller class' => 'EntityAPIControllerExportable',
       'base table' => 'cleverreach_block_forms',
       'fieldable' => FALSE,
@@ -64,7 +84,7 @@ function cleverreach_entity_info() {
       'admin ui' => array(
         'path' => 'admin/config/services/cleverreach',
         'file' => 'cleverreach.admin.inc',
-        'controller class' => 'CleverReachBlockUIController',
+        'controller class' => '\\Drupal\\cleverreach\\CleverReachBlockUIController',
       ),
     ),
   );
@@ -228,7 +248,7 @@ function _cleverreach_update_group_cache() {
   $groups = array();
 
   if (is_array($settings)) {
-    $api = new SoapClient($settings["url"]);
+    $api = cleverreach_get_soap_client();
     $result = $api->groupGetList($settings["key"]);
 
     if ($result->status == 'SUCCESS') {
@@ -237,7 +257,7 @@ function _cleverreach_update_group_cache() {
         $details = $api->groupGetDetails($settings["key"], $group->id);
         $group = array_merge(get_object_vars($group), get_object_vars($details->data));
 
-        $group_object = new CleverReachGroup($group);
+        $group_object = new \Drupal\cleverreach\CleverReachGroup($group);
 
         $groups[$group_object->id] = $group_object;
       }
@@ -402,3 +422,205 @@ function _cleverreach_sort_tabledrag($a, $b) {
     return $a['data']['weight']['data']['#default_value'] > $b['data']['weight']['data']['#default_value'];
   }
 }
+
+/**
+ * Returns the cleverreach soap client.
+ *
+ * Basically mimics a singleton.
+ *
+ * @return \Drupal\cleverreach\InterfaceV5;
+ */
+function cleverreach_get_soap_client() {
+  static $soapClient;
+  if (!$soapClient && ($settings = _cleverreach_get_settings())) {
+    $soapClient = new \Drupal\cleverreach\InterfaceV5($settings["url"]);
+  }
+  return $soapClient;
+}
+
+/**
+ * Adds a new user to list.
+ *
+ * @TODO Order handling.
+ *
+ * @return int|FALSE
+ *   The ID of the newly created receiver or FALSE on failure.
+ */
+function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NULL, $quality = NULL, array $attributes = array()) {
+  if ($settings = _cleverreach_get_settings()) {
+    $receiver_data = new \Drupal\cleverreach\Types\receiverData();
+    $receiver_data->email = $email;
+    $receiver_data->active = (bool) $active;
+    $receiver_data->source = $source;
+    if (!is_null($quality)) {
+      $receiver_data->quality = (float) $quality;
+    }
+    $receiver_data->activated = time();
+    $receiver_data->registered = time();
+    if (!empty($attributes)) {
+      $receiver_data->attributes = array();
+      foreach ($attributes as $k => $v) {
+        $receiver_data->attributes[] = array('key' => $k, 'value' => $v);
+      }
+    }
+    $result = cleverreach_get_soap_client()->receiverAdd($settings['key'], $list_id, $receiver_data);
+    // @TODO return the receiver id.
+    if (!empty($result->status) && $result->status == 'SUCCESS') {
+      return $result->data->id;
+    }
+  }
+  return FALSE;
+}
+
+/**
+ * This function generates the code skeleton in lib/* based on the SOAP wsdl.
+ *
+ * This uses the WSDLInterpreter as provided here:
+ * https://github.com/CandoImage/WSDLInterpreter
+ *
+ * The skeleton provides us with autocompletion and typing checks for the
+ * development.
+ *
+ * To use this function you've to download the WSDLInterpreter and place it in
+ * the module folder.
+ *
+ * @link https://github.com/CandoImage/WSDLInterpreter
+ *
+ * @param string $wsdl
+ */
+function _cleverreach_generate_lib_from_wsdl($wsdl = 'http://api.cleverreach.com/soap/interface_v5.1.php?wsdl') {
+
+  require_once dirname(__FILE__) . 'WSDLInterpreter/WSDLInterpreter.class.php';
+
+  // Set WSDL and Namespace.
+  $wsdlInterpreter = new WSDLInterpreter($wsdl, 'Drupal\\cleverreach');
+  // Set Drupal specific indent.
+  $wsdlInterpreter->setOutputIndent('  ');
+  // Use argument typing rather than generic check.
+  $wsdlInterpreter->setExpandMethodArguments(TRUE);
+  // Disable generic argument check in the code.
+  $wsdlInterpreter->setSkipArgumentCheck(TRUE);
+
+  try {
+    $results = $wsdlInterpreter->savePHP(dirname( __FILE__ ).'/lib/');
+
+    echo "Written: \n";
+
+    foreach($results as $result) {
+      echo "$result \n";
+    }
+  } catch(WSDLInterpreterException $e) {
+    echo $e->getMessage();
+  }
+}
+
+/**
+ * Implements hook_webform_component_info().
+ */
+function cleverreach_webform_component_info() {
+  $components = array();
+
+  $components['cleverreach'] = array(
+    'label' => t('Cleverreach'),
+    'description' => t('Sign up to a newsletter.'),
+    'features' => array(
+      'csv' => TRUE,
+      'email' => TRUE,
+      'email_address' => FALSE,
+      'email_name' => FALSE,
+      'required' => TRUE,
+      'conditional' => FALSE,
+      'group' => FALSE,
+      'attachment' => FALSE,
+    ),
+    'file' => 'cleverreach.webform.inc',
+  );
+
+  return $components;
+}
+
+/**
+ * Implements hook_webform_submission_insert().
+ */
+function cleverreach_webform_submission_insert($node, $submission) {
+  $cleverreach_lists = array();
+  $email_address = '';
+
+  if (!empty($node->webform['components'])) {
+    foreach ($node->webform['components'] as $key => $field) {
+      if ($field['type'] == 'cleverreach') {
+        $cleverreach_lists[] = $field['extra']['cleverreach_group'];
+        // Need to know if we should look for our own email field or another.
+        if ($field['extra']['use_existing_email_field'] != 'cleverreach_field') {
+          if (!empty($submission->data[$key][0])) {
+            // Loop through components again to find our email field.
+            foreach ($node->webform['components'] as $key2 => $field2) {
+              if ($field2['form_key'] == $field['extra']['use_existing_email_field']) {
+                $email_address = $submission->data[$key2][0];
+              }
+            }
+          }
+          // Visitor provided an email address but opted out of subscription.
+          else {
+            $email_address = '';
+          }
+        }
+        // We have our own email field.
+        else {
+          $email_address = $submission->data[$key][0];
+        }
+
+        // Retrieve attributefields and create a merge array with key webform key
+        // and value cleverreach merge tag.
+        if (!empty($field['extra']['attributefields'])) {
+          $attributefields_key_array = array();
+          $keyvaluepairs = explode("\n", $field['extra']['attributefields']);
+
+          foreach ($keyvaluepairs as $keyvalue) {
+            $keyvalue = trim($keyvalue);
+            $keyvalue = explode('|', $keyvalue);
+            if (is_array($keyvalue) && !empty($keyvalue[0]) && !empty($keyvalue[1])) {
+              $attributefields_key_array[$keyvalue[1]] = $keyvalue[0];
+            }
+          }
+        }
+      }
+    }
+
+    $attributefields_replacements = array();
+    // Create the mergefield array.
+    if (!empty($attributefields_key_array) && is_array($attributefields_key_array)) {
+      foreach ($node->webform['components'] as $key => $field) {
+        if (!empty($attributefields_key_array[$field['form_key']])) {
+          // This is probably a bit to easy... The delta value is not taken
+          // into account.
+          $value = 0;
+          if (isset($submission->data[$key][0])) {
+            $value = $submission->data[$key][0];
+          }
+          $attributefields_replacements[$attributefields_key_array[$field['form_key']]] = $value;
+        }
+      }
+    }
+
+    // If we have an email address and a list is set, try to subscribe the user.
+    if ($email_address != '' && !empty($cleverreach_lists)) {
+      $api = cleverreach_get_soap_client();
+      if ($api) {
+        foreach ($cleverreach_lists as $cleverreach_list) {
+          $success = cleverreach_receiver_add($cleverreach_list, $email_address, TRUE, variable_get('site_name', 'CleverReach Drupal Module'), NULL, $attributefields_replacements);
+          if ($success) {
+            watchdog('webform_cleverreach', 'E-mail subscribed: %email', array('%email' => $email_address), WATCHDOG_INFO);
+          }
+          else {
+            watchdog('webform_cleverreach', 'E-mail not subscribed: %email Error: %error_code <br> %error_message', array('%email' => $email_address, '%error_message' => $q->errorMessage, '%error_code' => $q->errorCode), WATCHDOG_ERROR);
+          }
+        }
+      }
+      else {
+        watchdog('webform_cleverreach', 'Could not get the cleverreach API object.', array(), WATCHDOG_ERROR);
+      }
+    }
+  }
+}
+

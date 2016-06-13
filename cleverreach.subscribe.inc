@@ -8,7 +8,7 @@
 /**
  * Function for buildung the subscribing blockform.
  */
-function cleverreach_subscribe_form($form, &$form_state, CleverReachBlock $block) {
+function cleverreach_subscribe_form($form, &$form_state, \Drupal\cleverreach\CleverReachBlock $block) {
   $form = array();
   $form['#tree'] = TRUE;
 
@@ -84,31 +84,7 @@ function cleverreach_subscribe_form_submit($form, &$form_state) {
     }
   }
 
-
-  if (count($subscribe_attributes)) {
-    $params = array(
-      "email" => $form_state['values']['email'],
-      "registered" => time(),
-      "activated" => time(),
-      "source" => variable_get('site_name', 'CleverReach Drupal Module'),
-      "attributes" => $subscribe_attributes,
-    );
-  }
-  else {
-    $params = array(
-      "email" => $form_state['values']['email'],
-      "registered" => time(),
-      "activated" => time(),
-      "source" => variable_get('site_name', 'CleverReach Drupal Module'),
-      "attributes" => $subscribe_attributes,
-    );
-  }
-
-  $settings = _cleverreach_get_settings();
-  $api = new SoapClient($settings["url"]);
-  $result = $api->receiverAdd($settings["key"], $block->listid, $params);
-
-  if ($result->status == "SUCCESS") {
+  if (cleverreach_receiver_add($form_state['values']['email'], TRUE, variable_get('site_name', 'CleverReach Drupal Module'), NULL, $subscribe_attributes)) {
     drupal_set_message(t('Your submission was successful.'));
   }
   else {
