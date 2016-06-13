@@ -1,14 +1,15 @@
 <?php
-
 /**
  * @file
  * Contains class \CleverReachBlock.
  */
 
+namespace Drupal\cleverreach;
+
 /**
  * The class used for cleverreach block entities.
  */
-class CleverReachBlock extends Entity {
+class CleverReachBlock extends \Entity {
 
   /**
    * Serial id of the block entity.
@@ -67,7 +68,7 @@ class CleverReachBlock extends Entity {
   }
 
   /**
-   * @return \CleverReachGroup
+   * @return CleverReachGroup
    */
   public function getGroup() {
     if ($this->listid) {

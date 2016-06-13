@@ -4,6 +4,8 @@
  * Contains \CleverReachGroupAttribute
  */
 
+namespace Drupal\cleverreach;
+
 class CleverReachGroupAttribute {
 
   public $is_global;

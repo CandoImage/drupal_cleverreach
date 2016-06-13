@@ -5,6 +5,8 @@
  * Contains class \CleverReachGroup.
  */
 
+namespace Drupal\cleverreach;
+
 /**
  * The class used for cleverreach group entities.
  */

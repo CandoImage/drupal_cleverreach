@@ -4,11 +4,12 @@
  * @file
  * Contains \CleverReachBlockUIController.
  */
+namespace Drupal\cleverreach;
 
 /**
  * UI controller - may be put in any include file and loaded via the code registry.
  */
-class CleverReachBlockUIController extends EntityDefaultUIController {
+class CleverReachBlockUIController extends \EntityDefaultUIController {
 
   /**
    * {@inheritdoc}
