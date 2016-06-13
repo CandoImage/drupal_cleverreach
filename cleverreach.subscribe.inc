@@ -12,6 +12,9 @@ function cleverreach_subscribe_form($form, &$form_state, \Drupal\cleverreach\Cle
   $form = array();
   $form['#tree'] = TRUE;
 
+  // Ensure this include file is loaded when the form is rebuilt from cache.
+  $form_state['build_info']['files']['form'] = drupal_get_path('module', 'cleverreach') . '/cleverreach.subscribe.inc';
+
   $form['block_name'] = array(
     '#type' => 'value',
     '#value' => $block->name,
@@ -85,12 +88,35 @@ function cleverreach_subscribe_form_submit($form, &$form_state) {
   }
 
   if (cleverreach_receiver_add($form_state['values']['email'], TRUE, variable_get('site_name', 'CleverReach Drupal Module'), NULL, $subscribe_attributes)) {
-    drupal_set_message(t('Your submission was successful.'));
+
+    // Show a simple message if no activation mail shall be sent.
+    if (!empty($block->send_activation_mail)) {
+      drupal_set_message(t('Your submission was successful.'));
+    }
+    // Otherwise we prepare an activation mail with relevant data for
+    // cleverreach.
+    else {
+      $iodata = array(
+        'user_ip' => ip_address(),
+        'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+        'referer' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '',
+        'postdata' => '',
+        'info' => '',
+      );
+      $settings = _cleverreach_get_settings();
+      $result2 = cleverreach_get_soap_client()->formsSendActivationMail($settings['key'], $block->formid, $form_state['values']['email'], $iodata);
+
+      if ($result2->status == 'SUCCESS') {
+        drupal_set_message(t('Your submission was successful. A mail has been sent to you for confirming your subscription.'));
+      }
+      else {
+        drupal_set_message(t('An error occured while sending the confirmation mail.'), 'error');
+      }
+    }
   }
   else {
     drupal_set_message(t('Error: Your submission failed.'), 'error');
   }
-
 }
 
 /**

@@ -436,6 +436,55 @@ function _cleverreach_sort_tabledrag($a, $b) {
 }
 
 /**
+ * Retrieve a list of configured forms for the given group.
+ *
+ * @param int $group_id
+ *
+ * @return \Drupal\cleverreach\CleverReachForm[]
+ *   List of group forms.
+ */
+function cleverreach_get_forms($group_id) {
+  $settings = _cleverreach_get_settings();
+
+  $forms = array();
+
+  if (is_array($settings)) {
+    $api = cleverreach_get_soap_client();
+    $result = $api->formsGetList($settings["key"], $group_id);
+
+    if ($result->status == 'SUCCESS') {
+      foreach ($result->data as $data) {
+        $form = new \Drupal\cleverreach\CleverReachForm(get_object_vars($data));
+        $forms[$form->id] = $form;
+      }
+    }
+    else {
+      watchdog('CleverReach', 'Could not retrieve forms for Group @id', array('@id' => $group_id), WATCHDOG_ERROR);
+    }
+  }
+  return $forms;
+}
+
+/**
+ * Retrieve authentication options for the given group.
+ *
+ * @param int $group_id
+ *   CleverReach group ID/listid.
+ *
+ * @return array
+ *   Array of authentication options. Keys are the form id holding the opt-in
+ *   mail configuration. The empty key is the option for no confirmation and
+ *   will subscribe the mail adress without confirmation.
+ */
+function cleverreach_get_form_options($group_id) {
+  $options = array();
+  foreach (cleverreach_get_forms($group_id) as $form) {
+    $options[$form->id] = check_plain($form->name);
+  }
+  return $options;
+}
+
+/**
  * Returns the cleverreach soap client.
  *
  * Basically mimics a singleton.
