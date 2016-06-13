@@ -242,12 +242,12 @@ function _cleverreach_block_fields_subform($gid, $values) {
 /**
  * Helper to ge the right value for the given attribute.
  *
- * @param \CleverReachGroupAttribute $attr
+ * @param \Drupal\cleverreach\CleverReachGroupAttribute $attr
  * @param $values
  *
  * @return mixed
  */
-function _cleverreach_block_form_get_field_values(\CleverReachGroupAttribute $attr, $values) {
+function _cleverreach_block_form_get_field_values(\Drupal\cleverreach\CleverReachGroupAttribute $attr, $values) {
   if (isset($values[$attr->key])) {
     $val = $values[$attr->key];
   }
@@ -276,8 +276,8 @@ function cleverreach_groups_overview() {
 
   foreach ($groups as $group) {
     $rows[] = array(
-      $group->id,
-      $group->name,
+      l($group->id, 'admin/config/services/cleverreach/group/' . $group->id . '/view'),
+      l($group->name, 'admin/config/services/cleverreach/group/' . $group->id . '/view'),
       $group->count,
       $group->inactive_count,
       (!empty($group->last_mailing)) ? format_date($group->last_mailing) : t('No mailing yet'),
@@ -299,6 +299,40 @@ function cleverreach_groups_overview() {
     '#rows' => $rows,
     '#header' => $group_header,
   );
+}
+
+/**
+ * Returns a renderable overview of the cached groups.
+ *
+ * @return array
+ *   Render array as group overview table.
+ */
+function cleverreach_groups_group_detail($group) {
+  if ($group) {
+    $rows = array();
+    foreach ($group as $name => $data) {
+      if (!is_scalar($data)) {
+        $data = '<pre>' . print_r($data, TRUE) . '</pre>';
+      }
+      $name = strtr($name, array('_' => ' ', '-' => ' '));
+      $rows[] = array(
+        ucfirst($name),
+        $data,
+      );
+    }
+
+    $group_header = array(
+      t('Name'),
+      t('Data'),
+    );
+
+    return array(
+      '#theme' => 'table',
+      '#rows' => $rows,
+      '#header' => $group_header,
+    );
+  }
+  return t('Failed to load group');
 }
 
 /**

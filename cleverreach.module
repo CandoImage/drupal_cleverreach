@@ -57,6 +57,18 @@ function cleverreach_menu() {
     'type' => MENU_LOCAL_TASK,
     'file' => 'cleverreach.admin.inc',
   );
+  $items['admin/config/services/cleverreach/group/%cleverreach_group'] = array(
+    'title' => 'Group Details',
+    'description' => 'Show details of a cleverreach group.',
+    'page callback' => 'cleverreach_groups_group_detail',
+    'page arguments' => array(5),
+    'access arguments' => array('administer cleverreach'),
+    'file' => 'cleverreach.admin.inc',
+  );
+  $items['admin/config/services/cleverreach/group/%cleverreach_group/view'] = array(
+    'title' => 'Group Details',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
   return $items;
 }
 
@@ -624,3 +636,19 @@ function cleverreach_webform_submission_insert($node, $submission) {
   }
 }
 
+/**
+ * Load the group details.
+ *
+ * @param $group_id
+ *
+ * @return object
+ */
+function cleverreach_group_load($group_id) {
+  if (($api = cleverreach_get_soap_client()) && $settings = _cleverreach_get_settings()) {
+    $result = $api->groupGetDetails($settings['key'], $group_id);
+    if ($result->status = 'SUCCESS') {
+      return $result->data;
+    }
+  }
+  return FALSE;
+}
