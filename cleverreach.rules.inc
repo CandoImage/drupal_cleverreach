@@ -70,6 +70,29 @@ function cleverreach_rules_action_info() {
       ),
       'group' => t('CleverReach'),
     ),
+    'cleverreach_rules_receiver_delete' => array(
+      'label' => t('Receiver Delete'),
+      'parameter' => array(
+        'listId' => array(
+          'type' => 'integer',
+          'label' => t('ListID'),
+          'options list' => 'cleverreach_get_group_options',
+          'optional' => FALSE,
+        ),
+        'email' => array(
+          'type' => 'text',
+          'label' => t('E-Mail'),
+          'optional' => FALSE,
+        ),
+      ),
+      'provides' => array(
+        'cleverreach_user_deleted' => array(
+          'label' => t('CleverReach User Deleted'),
+          'type' => 'bool',
+        ),
+      ),
+      'group' => t('CleverReach'),
+    ),
   );
   return $actions;
 }
@@ -194,4 +217,12 @@ function cleverreach_rules_receiver_add($list_id, $email, $active, $source, $qua
   }
   $user_id = cleverreach_receiver_add($list_id, $email, $active, $source, $quality, $prepared_attributes, $double_optin_form);
   return array('cleverreach_user_id' => $user_id);
+}
+
+/**
+ * Remove user from list.
+ */
+function cleverreach_rules_receiver_delete($list_id, $email) {
+  $user_id = cleverreach_receiver_delete($list_id, $email);
+  return array('cleverreach_user_deleted' => $user_id);
 }

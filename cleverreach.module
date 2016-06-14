@@ -528,9 +528,8 @@ function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NU
     }
     $api = cleverreach_get_soap_client();
     $result = $api->receiverAdd($settings['key'], $list_id, $receiver_data);
-    // @TODO return the receiver id.
     if (!empty($result->status) && $result->status == 'SUCCESS') {
-      watchdog('webform_cleverreach', 'E-mail subscribed: %email', array('%email' => $email), WATCHDOG_INFO);
+      watchdog('webform_cleverreach', 'E-mail subscribed: %email to list %list', array('%email' => $email, '%list' => $list_id), WATCHDOG_INFO);
       // If a double opt in form is set ensure it's used.
       if (!empty($double_optin_form_id)) {
         $iodata = new \Drupal\cleverreach\Types\DOIData;
@@ -547,7 +546,25 @@ function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NU
       return $result->data->id;
     }
   }
-  watchdog('cleverreach', 'E-mail not subscribed: %email Error: %error_code <br> %error_message', array('%email' => $email, '%error_message' => $result->message, '%error_code' => $result->statuscode), WATCHDOG_ERROR);
+  watchdog('cleverreach', 'E-mail not subscribed: %email to list %list Error: %error_code <br> %error_message', array('%email' => $email, '%list' => $list_id, '%error_message' => $result->message, '%error_code' => $result->statuscode), WATCHDOG_ERROR);
+  return FALSE;
+}
+
+/**
+ * Removes user from list.
+ *
+ * @return bool
+ */
+function cleverreach_receiver_delete($list_id, $email) {
+  if ($settings = _cleverreach_get_settings()) {
+    $api = cleverreach_get_soap_client();
+    $result = $api->receiverDelete($settings['key'], $list_id, $email);
+    if (!empty($result->status) && $result->status == 'SUCCESS') {
+      watchdog('webform_cleverreach', 'E-mail unsubscribed: %email from list %list', array('%email' => $email, '%list' => $list_id), WATCHDOG_INFO);
+      return TRUE;
+    }
+  }
+  watchdog('cleverreach', 'E-mail not unsubscribed: %email from list %list Error: %error_code <br> %error_message', array('%email' => $email, '%list' => $list_id, '%error_message' => $result->message, '%error_code' => $result->statuscode), WATCHDOG_ERROR);
   return FALSE;
 }
 
