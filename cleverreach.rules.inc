@@ -5,7 +5,7 @@
  */
 
 /**
- * Implements of hook_rules_action_info().
+ * Implements hook_rules_action_info().
  *
  * @see hook_rules_action_info()
  */
@@ -50,6 +50,14 @@ function cleverreach_rules_action_info() {
           'description' => t('Enter one key|value pair per line. Use the cleverreach attribute key as the key and then set the value, you may use tokens. For example "site_name|[site:name]"'),
           'optional' => TRUE,
         ),
+        'double-optin' => array(
+          'type' => 'integer',
+          'label' => t('Double Opt-In'),
+          'optional' => TRUE,
+          'allow null' => TRUE,
+          'default value' => NULL,
+          'options list' => 'cleverreach_rules_get_group_form_options',
+        ),
       ),
       'provides' => array(
         'cleverreach_user_id' => array(
@@ -64,6 +72,20 @@ function cleverreach_rules_action_info() {
     ),
   );
   return $actions;
+}
+
+/**
+ * Options callback to get the available forms for a group.
+ */
+function cleverreach_rules_get_group_form_options($group_id = NULL) {
+  $options = array(0 => t('No Double Opt-In'));
+  if ($group_id instanceof RulesAction) {
+    $group_id = NULL;
+  }
+  if ($group_id) {
+    $options += cleverreach_get_form_options($group_id);
+  }
+  return $options;
 }
 
 /**
@@ -106,6 +128,9 @@ function cleverreach_rules_receiver_add_form_alter(&$form, &$form_state, $option
   else {
     // Hide the reload button in case js is enabled and it's not the first step.
     $form['reload']['#attributes'] = array('class' => array('rules-hide-js'));
+
+    // Add the double opt-in forms list.
+    $form['parameter']['double-optin']['settings']['double-optin']['#options'] = cleverreach_rules_get_group_form_options($element->settings['listId']);
 
     // Add the available attributes list.
     $form['parameter']['attributes']['settings']['help']['group_attributes'] = array(
@@ -158,16 +183,15 @@ function cleverreach_rules_receiver_add_form_submit_rebuild($form, &$form_state)
  *
  * @TODO Order handling.
  */
-function cleverreach_rules_receiver_add($list_id, $email, $active, $source, $quality, $attributes) {
-  $prepared_attributes = NULL;
+function cleverreach_rules_receiver_add($list_id, $email, $active, $source, $quality, $attributes, $double_optin_form) {
+  $prepared_attributes = array();
   if (!empty($attributes)) {
-    $prepared_attributes = array();
     $attributes = explode("\n", str_replace("\r", '', $attributes));
     foreach ($attributes as $attribute) {
       $attribute = explode('|', $attribute, 2);
       $prepared_attributes[$attribute[0]] = $attribute[1];
     }
   }
-  $user_id = cleverreach_receiver_add($list_id, $email, $active, $source, $quality, $prepared_attributes);
+  $user_id = cleverreach_receiver_add($list_id, $email, $active, $source, $quality, $prepared_attributes, $double_optin_form);
   return array('cleverreach_user_id' => $user_id);
 }

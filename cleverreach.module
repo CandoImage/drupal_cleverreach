@@ -507,7 +507,7 @@ function cleverreach_get_soap_client() {
  * @return int|FALSE
  *   The ID of the newly created receiver or FALSE on failure.
  */
-function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NULL, $quality = NULL, array $attributes = array()) {
+function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NULL, $quality = NULL, array $attributes = array(), $double_optin_form_id = NULL) {
   if ($settings = _cleverreach_get_settings()) {
     $receiver_data = new \Drupal\cleverreach\Types\receiverData();
     $receiver_data->email = $email;
@@ -516,7 +516,9 @@ function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NU
     if (!is_null($quality)) {
       $receiver_data->quality = (float) $quality;
     }
-    $receiver_data->activated = time();
+    if (!empty($receiver_data->active)) {
+      $receiver_data->activated = time();
+    }
     $receiver_data->registered = time();
     if (!empty($attributes)) {
       $receiver_data->attributes = array();
@@ -524,12 +526,28 @@ function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NU
         $receiver_data->attributes[] = array('key' => $k, 'value' => $v);
       }
     }
-    $result = cleverreach_get_soap_client()->receiverAdd($settings['key'], $list_id, $receiver_data);
+    $api = cleverreach_get_soap_client();
+    $result = $api->receiverAdd($settings['key'], $list_id, $receiver_data);
     // @TODO return the receiver id.
     if (!empty($result->status) && $result->status == 'SUCCESS') {
+      watchdog('webform_cleverreach', 'E-mail subscribed: %email', array('%email' => $email), WATCHDOG_INFO);
+      // If a double opt in form is set ensure it's used.
+      if (!empty($double_optin_form_id)) {
+        $iodata = new \Drupal\cleverreach\Types\DOIData;
+        $iodata->user_ip = ip_address();
+        $iodata->user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+        $iodata->referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+        $iodata->postdata = '';
+        $iodata->info = '';
+        $result2 = $api->formsSendActivationMail($settings['key'], $double_optin_form_id, $email, $iodata);
+        if (empty($result2->status) || $result2->status != 'SUCCESS') {
+          watchdog('cleverreach', 'Double opt-in not send: %email Error: %error_code <br> %error_message', array('%email' => $email, '%error_message' => $result->message, '%error_code' => $result->statuscode), WATCHDOG_ERROR);
+        }
+      }
       return $result->data->id;
     }
   }
+  watchdog('cleverreach', 'E-mail not subscribed: %email Error: %error_code <br> %error_message', array('%email' => $email, '%error_message' => $result->message, '%error_code' => $result->statuscode), WATCHDOG_ERROR);
   return FALSE;
 }
 
@@ -670,12 +688,6 @@ function cleverreach_webform_submission_insert($node, $submission) {
       if ($api) {
         foreach ($cleverreach_lists as $cleverreach_list) {
           $success = cleverreach_receiver_add($cleverreach_list, $email_address, TRUE, variable_get('site_name', 'CleverReach Drupal Module'), NULL, $attributefields_replacements);
-          if ($success) {
-            watchdog('webform_cleverreach', 'E-mail subscribed: %email', array('%email' => $email_address), WATCHDOG_INFO);
-          }
-          else {
-            watchdog('webform_cleverreach', 'E-mail not subscribed: %email Error: %error_code <br> %error_message', array('%email' => $email_address, '%error_message' => $q->errorMessage, '%error_code' => $q->errorCode), WATCHDOG_ERROR);
-          }
         }
       }
       else {
