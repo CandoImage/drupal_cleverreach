@@ -173,7 +173,7 @@ function cleverreach_get_all_blocks() {
 /**
  * Gets all cleverreach group objects.
  *
- * @return CleverReachGroup[]
+ * @return \Drupal\cleverreach\CleverReachGroup[]
  */
 function cleverreach_get_all_groups() {
   $cache = cache_get(CLEVERREACH_GROUPS_CACHE_ID);
@@ -189,12 +189,21 @@ function cleverreach_get_all_groups() {
  * @param $crgid
  *   CleverReach group id.
  *
- * @return CleverReachGroup
+ * @return \Drupal\cleverreach\CleverReachGroup
  */
 function cleverreach_get_single_group($crgid) {
   $groups = cleverreach_get_all_groups();
   if (isset($groups[$crgid])) {
     return $groups[$crgid];
+  }
+  else {
+    // In the case the ID is not cached, we create an in memory "Missing group".
+    watchdog('CleverReach', 'Group @listid cannot be fetched via API. Check your CleverReach API-Key or update the newsletter configuration.', array('@listid' => $crgid));
+
+    return new \Drupal\cleverreach\CleverReachGroup(array(
+      'id' => $crgid,
+      'name' => t('<Missing group>'),
+    ));
   }
 }
 
