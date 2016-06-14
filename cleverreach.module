@@ -645,6 +645,21 @@ function cleverreach_webform_component_info() {
 }
 
 /**
+ * Implements hook_form_FORM_ID_alter on behalf of webform_component_edit_form().
+ */
+function cleverreach_form_webform_component_edit_form_alter($form, &$form_state) {
+  // Ensure the webform component file is always available when processing the
+  // components form. This fixes ajax issues.
+  $components = webform_components();
+  if (($info = $components[$form['type']['#value']]) && isset($info['file'])) {
+    $pathinfo = pathinfo($info['file']);
+    $basename = basename($pathinfo['basename'], '.' . $pathinfo['extension']);
+    $path = (!empty($pathinfo['dirname']) ? $pathinfo['dirname'] . '/' : '') . $basename;
+    form_load_include($form_state, $pathinfo['extension'], $info['module'], $path);
+  }
+}
+
+/**
  * Implements hook_webform_submission_insert().
  */
 function cleverreach_webform_submission_insert($node, $submission) {
@@ -654,7 +669,10 @@ function cleverreach_webform_submission_insert($node, $submission) {
   if (!empty($node->webform['components'])) {
     foreach ($node->webform['components'] as $key => $field) {
       if ($field['type'] == 'cleverreach') {
-        $cleverreach_lists[] = $field['extra']['cleverreach_group'];
+        $cleverreach_lists[] = array(
+          'group' => $field['extra']['cleverreach_group'],
+          'double_optin_form' => (!empty($field['extra']['double_opt_in_form'])) ? $field['extra']['double_opt_in_form'] : NULL,
+        );
         // Need to know if we should look for our own email field or another.
         if ($field['extra']['use_existing_email_field'] != 'cleverreach_field') {
           if (!empty($submission->data[$key][0])) {
@@ -713,7 +731,7 @@ function cleverreach_webform_submission_insert($node, $submission) {
       $api = cleverreach_get_soap_client();
       if ($api) {
         foreach ($cleverreach_lists as $cleverreach_list) {
-          $success = cleverreach_receiver_add($cleverreach_list, $email_address, TRUE, variable_get('site_name', 'CleverReach Drupal Module'), NULL, $attributefields_replacements);
+          $success = cleverreach_receiver_add($cleverreach_list['group'], $email_address, empty($cleverreach_list['double_optin_form']), variable_get('site_name', 'CleverReach Drupal Module'), NULL, $attributefields_replacements, $cleverreach_list['double_optin_form']);
         }
       }
       else {

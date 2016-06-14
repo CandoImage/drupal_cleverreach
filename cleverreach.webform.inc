@@ -24,6 +24,7 @@ function _webform_defaults_cleverreach() {
       'description' => '',
       'attributes' => array(),
       'cleverreach_group' => '',
+      'double_opt_in_form' => 0,
       'use_existing_email_field' => '',
       'private' => FALSE,
     ),
@@ -72,6 +73,25 @@ function _webform_edit_cleverreach($component) {
     '#description' => t('Choose which group that the user can subscribe to.'),
     '#options' => $options,
     '#element_validate' => array('_webform_cleverreach_group_validate'),
+    '#ajax' => array(
+      'callback' => '_webform_edit_cleverreach_refresh',
+      'wrapper' => 'webform-component-form-wrapper',
+    ),
+  );
+  // Specify the wrapper div used by #ajax.
+  $form['#prefix'] = '<div id="webform-component-form-wrapper">';
+  $form['#suffix'] = '</div>';
+
+  $double_opt_in_options = array(0 => t('No Double Opt-In'));
+  if (!empty($component['extra']['cleverreach_group'])) {
+    $double_opt_in_options += cleverreach_get_form_options($component['extra']['cleverreach_group']);
+  }
+  $form['extra']['double_opt_in_form'] = array(
+    '#type' => 'select',
+    '#title' => t('Double Opt-In Form'),
+    '#default_value' => !empty($component['extra']['double_opt_in_form']) ? $component['extra']['double_opt_in_form'] : 0,
+    '#description' => t('Choose if and which double opt-in form is used.'),
+    '#options' => $double_opt_in_options,
   );
 
   $form['user_email'] = array(
@@ -133,12 +153,60 @@ function _webform_edit_cleverreach($component) {
 
   $form['extra']['attributefields'] = array(
     '#type' => 'textarea',
-    '#title' => t('cleverreach merge fields'),
-    '#description' => t('Enter one key|value pair per line. Use the cleverreach variable key as the key and the webform field key as the value. For example "FNAME|firstname"'),
+    '#title' => t('Cleverreach Attribute fields'),
+    '#description' => t('Enter one key|value pair per line. Use the cleverreach variable key as the key and the webform field key as the value. For example "fname|firstname"'),
     '#default_value' => !empty($component['extra']['attributefields']) ? $component['extra']['attributefields'] : '',
     '#weight' => 5,
   );
+  // Add the available attributes list.
+  $form['extra']['attributefields_help'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Available Group Attributes'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#weight' => 6,
+  );
+  if (!empty($component['extra']['cleverreach_group'])) {
+    $rows = array();
+    $group_name = '';
+    if ($group = cleverreach_get_single_group($component['extra']['cleverreach_group'])) {
+      $group_name = $group->name;
+      foreach (array('attributes', 'globalAttributes') as $attribute_type) {
+        if (!empty($group->{$attribute_type})) {
+          foreach ($group->{$attribute_type} as $attribute) {
+            $row = (array) $attribute;
+            unset($row['is_global']);
+            $row['key'] = array('header' => TRUE, 'data' => $row['key']);
+            $rows[] = $row;
+          }
+        }
+      }
+    }
+    $form['extra']['attributefields_help']['table'] = array(
+      '#theme' => 'table',
+      '#rows' => $rows,
+      '#caption' => t('Known attributes for group %group', array('%group' => $group_name)),
+      '#empty' => t('No known attributes found'),
+      '#header' => array(
+        t('Attribute Key'),
+        t('Type'),
+        t('Variable'),
+      ),
+    );
+  }
 
+  return $form;
+}
+
+/**
+ * Ajax callback.
+ */
+function _webform_edit_cleverreach_refresh($form, &$form_state) {
+  $double_opt_in_options = array(0 => t('No Double Opt-In'));
+  if (!empty($form_state['values']['extra']['cleverreach_group'])) {
+    $double_opt_in_options += cleverreach_get_form_options($form_state['values']['extra']['cleverreach_group']);
+  }
+  $form['extra']['double_opt_in_form']['#options'] = $double_opt_in_options;
   return $form;
 }
 
