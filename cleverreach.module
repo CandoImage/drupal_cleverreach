@@ -554,8 +554,8 @@ function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NU
       }
       return $result->data->id;
     }
+    watchdog('cleverreach', 'E-mail not subscribed: %email to list %list Error: %error_code <br> %error_message', array('%email' => $email, '%list' => $list_id, '%error_message' => $result->message, '%error_code' => $result->statuscode), WATCHDOG_ERROR);
   }
-  watchdog('cleverreach', 'E-mail not subscribed: %email to list %list Error: %error_code <br> %error_message', array('%email' => $email, '%list' => $list_id, '%error_message' => $result->message, '%error_code' => $result->statuscode), WATCHDOG_ERROR);
   return FALSE;
 }
 
@@ -572,8 +572,8 @@ function cleverreach_receiver_delete($list_id, $email) {
       watchdog('webform_cleverreach', 'E-mail unsubscribed: %email from list %list', array('%email' => $email, '%list' => $list_id), WATCHDOG_INFO);
       return TRUE;
     }
+    watchdog('cleverreach', 'E-mail not unsubscribed: %email from list %list Error: %error_code <br> %error_message', array('%email' => $email, '%list' => $list_id, '%error_message' => $result->message, '%error_code' => $result->statuscode), WATCHDOG_ERROR);
   }
-  watchdog('cleverreach', 'E-mail not unsubscribed: %email from list %list Error: %error_code <br> %error_message', array('%email' => $email, '%list' => $list_id, '%error_message' => $result->message, '%error_code' => $result->statuscode), WATCHDOG_ERROR);
   return FALSE;
 }
 
