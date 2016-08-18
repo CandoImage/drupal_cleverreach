@@ -227,7 +227,7 @@ function cleverreach_get_group_options() {
 function _cleverreach_get_settings() {
   $cr_api = array(
     'key' => variable_get('cleverreach_api_key', ''),
-    'url' => variable_get('cleverreach_wsdl_url', ''),
+    'url' => variable_get('cleverreach_wsdl_url', 'http://api.cleverreach.com/soap/interface_v5.1.php?wsdl'),
   );
 
   if (empty($cr_api["key"]) || empty($cr_api["url"])) {
