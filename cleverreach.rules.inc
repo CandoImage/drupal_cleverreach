@@ -58,6 +58,13 @@ function cleverreach_rules_action_info() {
           'default value' => NULL,
           'options list' => 'cleverreach_rules_get_group_form_options',
         ),
+        'auto_update' => array(
+          'type' => 'boolean',
+          'label' => t('Auto-Update'),
+          'description' => t('If activated and the receiver already exists the data are updated instead skipping the operation.'),
+          'default value' => TRUE,
+          'optional' => TRUE,
+        ),
       ),
       'provides' => array(
         'cleverreach_user_id' => array(
