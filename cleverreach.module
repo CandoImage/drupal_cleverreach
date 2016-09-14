@@ -782,8 +782,10 @@ function cleverreach_webform_submission_insert($node, $submission) {
     if ($email_address != '' && !empty($cleverreach_lists)) {
       $api = cleverreach_get_soap_client();
       if ($api) {
+        $source = variable_get('cleverreach_default_source', variable_get('site_name', 'CleverReach Drupal Module'));
         foreach ($cleverreach_lists as $cleverreach_list) {
-          $success = cleverreach_receiver_add($cleverreach_list['group'], $email_address, empty($cleverreach_list['double_optin_form']), variable_get('site_name', 'CleverReach Drupal Module'), NULL, $attributefields_replacements, $cleverreach_list['double_optin_form']);
+
+          $success = cleverreach_receiver_add($cleverreach_list['group'], $email_address, empty($cleverreach_list['double_optin_form']), $source, NULL, $attributefields_replacements, $cleverreach_list['double_optin_form']);
         }
       }
       else {

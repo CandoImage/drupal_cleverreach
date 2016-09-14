@@ -226,4 +226,5 @@ function cleverreach_update_7106() {
 function cleverreach_uninstall() {
   variable_del('cleverreach_api_key');
   variable_del('cleverreach_wsdl_url');
+  variable_del('cleverreach_default_source');
 }
