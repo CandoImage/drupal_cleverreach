@@ -269,18 +269,29 @@ function _cleverreach_update_group_cache() {
   $groups = array();
 
   if (is_array($settings)) {
-    $api = cleverreach_get_soap_client();
-    $result = $api->groupGetList($settings["key"]);
-
-    if ($result->status == 'SUCCESS') {
+    try {
+      $api = cleverreach_get_soap_client();
+      $result = $api->groupGetList($settings["key"]);
+    }
+    catch (SoapFault $e) {
+      watchdog_exception('cleverreach', $e);
+    }
+    if (!empty($result->status) && $result->status == 'SUCCESS') {
 
       foreach ($result->data as $group) {
-        $details = $api->groupGetDetails($settings["key"], $group->id);
-        $group = array_merge(get_object_vars($group), get_object_vars($details->data));
+        try {
+          $details = $api->groupGetDetails($settings["key"], $group->id);
+        }
+        catch (SoapFault $e) {
+          watchdog_exception('cleverreach', $e);
+        }
+        if (!empty($details)) {
+          $group = array_merge(get_object_vars($group), get_object_vars($details->data));
 
-        $group_object = new \Drupal\cleverreach\CleverReachGroup($group);
+          $group_object = new \Drupal\cleverreach\CleverReachGroup($group);
 
-        $groups[$group_object->id] = $group_object;
+          $groups[$group_object->id] = $group_object;
+        }
       }
 
       cache_set(CLEVERREACH_GROUPS_CACHE_ID, $groups);
@@ -458,10 +469,15 @@ function cleverreach_get_forms($group_id) {
   $forms = array();
 
   if (is_array($settings)) {
-    $api = cleverreach_get_soap_client();
-    $result = $api->formsGetList($settings["key"], $group_id);
+    try {
+      $api = cleverreach_get_soap_client();
+      $result = $api->formsGetList($settings["key"], $group_id);
+    }
+    catch (SoapFault $e) {
+      watchdog_exception('cleverreach', $e);
+    }
 
-    if ($result->status == 'SUCCESS') {
+    if (!empty($result->status) && $result->status == 'SUCCESS') {
       foreach ($result->data as $data) {
         $form = new \Drupal\cleverreach\CleverReachForm(get_object_vars($data));
         $forms[$form->id] = $form;
@@ -503,7 +519,12 @@ function cleverreach_get_form_options($group_id) {
 function cleverreach_get_soap_client() {
   static $soapClient;
   if (!$soapClient && ($settings = _cleverreach_get_settings())) {
-    $soapClient = new \Drupal\cleverreach\InterfaceV5($settings["url"]);
+    try {
+      $soapClient = new \Drupal\cleverreach\InterfaceV5($settings["url"]);
+    }
+    catch (SoapFault $e) {
+      watchdog_exception('cleverreach', $e);
+    }
   }
   return $soapClient;
 }
@@ -535,8 +556,14 @@ function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NU
         $receiver_data->attributes[] = array('key' => $k, 'value' => $v);
       }
     }
-    $api = cleverreach_get_soap_client();
-    $result = $api->receiverAdd($settings['key'], $list_id, $receiver_data);
+
+    try {
+      $api = cleverreach_get_soap_client();
+      $result = $api->receiverAdd($settings['key'], $list_id, $receiver_data);
+    }
+    catch (SoapFault $e) {
+      watchdog_exception('cleverreach', $e);
+    }
     if (!empty($result->status)) {
       if ($result->status == 'SUCCESS') {
         watchdog('webform_cleverreach', 'E-mail subscribed: %email to list %list', array(
@@ -551,7 +578,12 @@ function cleverreach_receiver_add($list_id, $email, $active = TRUE, $source = NU
           $iodata->referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
           $iodata->postdata = '';
           $iodata->info = '';
-          $result2 = $api->formsSendActivationMail($settings['key'], $double_optin_form_id, $email, $iodata);
+          try {
+            $result2 = $api->formsSendActivationMail($settings['key'], $double_optin_form_id, $email, $iodata);
+          }
+          catch (SoapFault $e) {
+            watchdog_exception('cleverreach', $e);
+          }
           if (empty($result2->status) || $result2->status != 'SUCCESS') {
             watchdog('cleverreach', 'Double opt-in not send: %email Error: %error_code <br> %error_message', array(
               '%email' => $email,
@@ -600,8 +632,13 @@ function cleverreach_receiver_update($list_id, $email, array $attributes = array
         $receiver_data->attributes[] = array('key' => $k, 'value' => $v);
       }
     }
-    $api = cleverreach_get_soap_client();
-    $result = $api->receiverUpdate($settings['key'], $list_id, $receiver_data);
+    try {
+      $api = cleverreach_get_soap_client();
+      $result = $api->receiverUpdate($settings['key'], $list_id, $receiver_data);
+    }
+    catch (SoapFault $e) {
+      watchdog_exception('cleverreach', $e);
+    }
     if (!empty($result->status) && $result->status == 'SUCCESS') {
       watchdog('webform_cleverreach', 'Subscriber %email updated in list %list', array('%email' => $email, '%list' => $list_id), WATCHDOG_INFO);
       return $result->data->id;
@@ -618,8 +655,13 @@ function cleverreach_receiver_update($list_id, $email, array $attributes = array
  */
 function cleverreach_receiver_delete($list_id, $email) {
   if ($settings = _cleverreach_get_settings()) {
-    $api = cleverreach_get_soap_client();
-    $result = $api->receiverDelete($settings['key'], $list_id, $email);
+    try {
+      $api = cleverreach_get_soap_client();
+      $result = $api->receiverDelete($settings['key'], $list_id, $email);
+    }
+    catch (SoapFault $e) {
+      watchdog_exception('cleverreach', $e);
+    }
     if (!empty($result->status) && $result->status == 'SUCCESS') {
       watchdog('webform_cleverreach', 'E-mail unsubscribed: %email from list %list', array('%email' => $email, '%list' => $list_id), WATCHDOG_INFO);
       return TRUE;
@@ -780,7 +822,12 @@ function cleverreach_webform_submission_insert($node, $submission) {
 
     // If we have an email address and a list is set, try to subscribe the user.
     if ($email_address != '' && !empty($cleverreach_lists)) {
-      $api = cleverreach_get_soap_client();
+      try {
+        $api = cleverreach_get_soap_client();
+      }
+      catch (SoapFault $e) {
+        watchdog_exception('cleverreach', $e);
+      }
       if ($api) {
         $source = variable_get('cleverreach_default_source', variable_get('site_name', 'CleverReach Drupal Module'));
         foreach ($cleverreach_lists as $cleverreach_list) {
@@ -800,12 +847,17 @@ function cleverreach_webform_submission_insert($node, $submission) {
  *
  * @param $group_id
  *
- * @return object
+ * @return object|FALSE
  */
 function cleverreach_group_load($group_id) {
   if (($api = cleverreach_get_soap_client()) && $settings = _cleverreach_get_settings()) {
-    $result = $api->groupGetDetails($settings['key'], $group_id);
-    if ($result->status = 'SUCCESS') {
+    try {
+      $result = $api->groupGetDetails($settings['key'], $group_id);
+    }
+    catch (SoapFault $e) {
+      watchdog_exception('cleverreach', $e);
+    }
+    if (!empty($result->status) && $result->status = 'SUCCESS') {
       return $result->data;
     }
   }

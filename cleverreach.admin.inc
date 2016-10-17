@@ -418,7 +418,12 @@ function _cleverreach_admin_settings() {
 function _cleverreach_admin_settings_validate($form, &$form_state) {
 
   // Validate connection.
-  $api = new SoapClient($form_state['values']['cleverreach_wsdl_url']);
+  try {
+    $api = new SoapClient($form_state['values']['cleverreach_wsdl_url']);
+  }
+  catch (SoapFault $e) {
+    watchdog_exception('cleverreach', $e);
+  }
   $response = $api->clientGetDetails($form_state['values']['cleverreach_api_key']);
   if ($response->status == 'ERROR') {
     form_set_error('cleverreach_api_key', t('Could not connect to the Server: %message', array(

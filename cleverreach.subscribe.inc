@@ -104,9 +104,14 @@ function cleverreach_subscribe_form_submit($form, &$form_state) {
         'info' => '',
       );
       $settings = _cleverreach_get_settings();
-      $result2 = cleverreach_get_soap_client()->formsSendActivationMail($settings['key'], $block->formid, $form_state['values']['email'], $iodata);
+      try {
+        $result = cleverreach_get_soap_client()->formsSendActivationMail($settings['key'], $block->formid, $form_state['values']['email'], $iodata);
+      }
+      catch (SoapFault $e) {
+        watchdog_exception('cleverreach', $e);
+      }
 
-      if ($result2->status == 'SUCCESS') {
+      if (!empty($result->status) && $result->status == 'SUCCESS') {
         drupal_set_message(t('Your submission was successful. A mail has been sent to you for confirming your subscription.'));
       }
       else {

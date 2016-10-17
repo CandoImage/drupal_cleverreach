@@ -52,7 +52,12 @@ function _webform_edit_cleverreach($component) {
   $form = array();
 
   $options = array('none' => 'Select group');
-  $api = cleverreach_get_soap_client();
+  try {
+    $api = cleverreach_get_soap_client();
+  }
+  catch (SoapFault $e) {
+    watchdog_exception('cleverreach', $e);
+  }
   if ($api) {
     $groups = cleverreach_get_group_options();
     if (!empty($groups)) {
